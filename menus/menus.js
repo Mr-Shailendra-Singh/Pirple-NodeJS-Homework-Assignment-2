@@ -1,3 +1,4 @@
+const config = require("../lib/config");
 const handlers = require("../lib/handlers");
 const helpers = require("../lib/helpers");
 var _data = require("../lib/data");
@@ -276,14 +277,13 @@ menus.cart = (data, callback) => {
           _data.read("cart", email, function(err, data) {
             if (!err && data) {
               let price = 0;
-              let quantity = 0;
               data.cart.forEach(i => {
                 price += listOfMenu[i.menuId].price * i.quantity;
               });
               const output = data.cart;
               output.push({
                 total: (Math.round(price * 10) / 10).toFixed(2),
-                currency: "USD"
+                currency: config.currency
               });
               callback(200, output);
             } else {
@@ -307,17 +307,77 @@ menus.cart = (data, callback) => {
 };
 
 menus.order = (data, callback) => {
-  // Instantiate the request object
-  // var req = https.request(requestDetails, function(res) {
-  //   // Grab the status of the sent request
-  //   var status = res.statusCode;
-  //   // Callback successfully if the request went through
-  //   if (status == 200 || status == 201) {
-  //     callback(false);
-  //   } else {
-  //     callback("Status code returned was " + status);
-  //   }
-  // });
+  if (data.method === "post") {
+    var email =
+      typeof data.payload.email == "string" ? data.payload.email.trim() : false;
+    var cc =
+      typeof data.payload.cc == "string" ? data.payload.cc.trim() : false;
+    if (helpers.validateEmail(email)) {
+      if (email && cc) {
+        // Get token from headers
+        var token =
+          typeof data.headers.token == "string" ? data.headers.token : false;
+        handlers._tokens.verifyToken(token, email, function(tokenIsValid) {
+          if (tokenIsValid) {
+            _data.read("cart", email, function(err, data) {
+              if (!err && data) {
+                let price = 0;
+                let desc = [];
+                data.cart.forEach(i => {
+                  price += listOfMenu[i.menuId].price * i.quantity;
+                  desc.push(listOfMenu[i.menuId].name);
+                });
+                // Stripe don't allow cents
+                const amount = Math.round(price);
+                const currency = config.currency;
+                const description =
+                  "Payment for: " +
+                  desc.join(", ").replace(/\./g, "") +
+                  ". Email: " +
+                  email;
+                const orders = {
+                  email,
+                  currency,
+                  amount,
+                  item: data.cart,
+                  time: Date.now()
+                };
+                helpers.stripe(amount, currency, description, cc, result => {
+                  if (result) {
+                    _data.create("orders", email, orders, function(err) {
+                      if (!err) {
+                        callback(200);
+                      } else {
+                        callback(500, {
+                          Error: "Could not create the orders."
+                        });
+                      }
+                    });
+                  } else {
+                    callback(result);
+                  }
+                });
+              } else {
+                callback(500, {
+                  Error: "Could not read the order data"
+                });
+              }
+            });
+          } else {
+            callback(403, {
+              Error: "Missing required token in header, or token is invalid."
+            });
+          }
+        });
+      } else {
+        callback(400, { Error: "Missing required fields" });
+      }
+    } else {
+      callback(400, { Error: "Missing email" });
+    }
+  } else {
+    callback(405);
+  }
 };
 
 module.exports = menus;

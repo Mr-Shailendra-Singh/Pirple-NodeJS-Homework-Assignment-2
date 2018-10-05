@@ -277,10 +277,12 @@ menus.cart = (data, callback) => {
           _data.read("cart", email, function(err, data) {
             if (!err && data) {
               let price = 0;
+              // count the total price
               data.cart.forEach(i => {
                 price += listOfMenu[i.menuId].price * i.quantity;
               });
               const output = data.cart;
+              // add the price object to the last array so that we can show it to user
               output.push({
                 total: (Math.round(price * 10) / 10).toFixed(2),
                 currency: config.currency
@@ -288,7 +290,7 @@ menus.cart = (data, callback) => {
               callback(200, output);
             } else {
               callback(500, {
-                Error: "Could not list the cart"
+                Error: "Could not list the cart or the cart is not available"
               });
             }
           });
@@ -306,6 +308,9 @@ menus.cart = (data, callback) => {
   }
 };
 
+// Checkout to payment
+// Required data: email, cc
+// Optional data: none
 menus.order = (data, callback) => {
   if (data.method === "post") {
     var email =
@@ -344,7 +349,9 @@ menus.order = (data, callback) => {
                 };
                 helpers.stripe(amount, currency, description, cc, result => {
                   if (result) {
+                    // if payment is successful, create the order and save it under ./data/orders
                     _data.create("orders", email, orders, function(err) {
+                      // once order saved, email the user
                       if (!err) {
                         const mailText = `Your payment for ${desc
                           .join(", ")

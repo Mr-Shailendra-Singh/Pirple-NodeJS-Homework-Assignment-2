@@ -346,7 +346,31 @@ menus.order = (data, callback) => {
                   if (result) {
                     _data.create("orders", email, orders, function(err) {
                       if (!err) {
-                        callback(200);
+                        const mailText = `Your payment for ${desc
+                          .join(", ")
+                          .replace(/\./g, "")} is successful`;
+                        helpers.mailgun(
+                          "Order successful",
+                          mailText,
+                          result => {
+                            if (result) {
+                              _data.delete("cart", email, function(err) {
+                                if (!err) {
+                                  callback(200);
+                                } else {
+                                  callback(500, {
+                                    Error: "Could not delete the user cart"
+                                  });
+                                }
+                              });
+                            } else {
+                              callback(500, {
+                                Error:
+                                  "Could not send email but the payment however is successful"
+                              });
+                            }
+                          }
+                        );
                       } else {
                         callback(500, {
                           Error: "Could not create the orders."

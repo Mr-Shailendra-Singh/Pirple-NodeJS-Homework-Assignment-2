@@ -1,49 +1,60 @@
 const handlers = require("../lib/handlers");
 const helpers = require("../lib/helpers");
 var _data = require("../lib/data");
+var https = require("https");
 
 // Available menu
 const listOfMenu = {
   1: {
     name: "Margherita",
+    price: 2.99,
     description: "Tomato sauce, mozzarella, and oregano"
   },
   2: {
     name: "Marinara.",
+    price: 4.99,
     description: "Tomato sauce, garlic and basil"
   },
   3: {
     name: "Quattro Stagioni.",
+    price: 5.99,
     description:
       "Tomato sauce, mozzarella, mushrooms, ham, artichokes, olives, and oregano"
   },
   4: {
     name: "Carbonara.",
+    price: 6.99,
     description: "Tomato sauce, mozzarella, parmesan, eggs, and bacon"
   },
   5: {
     name: "Frutti di Mare.",
+    price: 4.99,
     description: "Tomato sauce and seafood"
   },
   6: {
     name: "Quattro Formaggi.",
+    price: 5.99,
     description:
       "Tomato sauce, mozzarella, parmesan, gorgonzola cheese, artichokes, and oregano"
   },
   7: {
     name: "Crudo.",
+    price: 3.99,
     description: "Tomato sauce, mozzarella and Parma ham"
   },
   8: {
     name: "Napoletana or Napoli.",
+    price: 6.99,
     description: "Tomato sauce, mozzarella, oregano, anchovies"
   },
   9: {
     name: "Pugliese.",
+    price: 12.99,
     description: "Tomato sauce, mozzarella, oregano, and onions"
   },
   10: {
     name: "Montanara.",
+    price: 15.99,
     description:
       "Tomato sauce, mozzarella, mushrooms, pepperoni, and Stracchino (soft cheese)"
   }
@@ -264,7 +275,17 @@ menus.cart = (data, callback) => {
         if (tokenIsValid) {
           _data.read("cart", email, function(err, data) {
             if (!err && data) {
-              callback(200, data.cart);
+              let price = 0;
+              let quantity = 0;
+              data.cart.forEach(i => {
+                price += listOfMenu[i.menuId].price * i.quantity;
+              });
+              const output = data.cart;
+              output.push({
+                total: (Math.round(price * 10) / 10).toFixed(2),
+                currency: "USD"
+              });
+              callback(200, output);
             } else {
               callback(500, {
                 Error: "Could not list the cart"
@@ -283,6 +304,20 @@ menus.cart = (data, callback) => {
   } else {
     callback(405);
   }
+};
+
+menus.order = (data, callback) => {
+  // Instantiate the request object
+  // var req = https.request(requestDetails, function(res) {
+  //   // Grab the status of the sent request
+  //   var status = res.statusCode;
+  //   // Callback successfully if the request went through
+  //   if (status == 200 || status == 201) {
+  //     callback(false);
+  //   } else {
+  //     callback("Status code returned was " + status);
+  //   }
+  // });
 };
 
 module.exports = menus;
